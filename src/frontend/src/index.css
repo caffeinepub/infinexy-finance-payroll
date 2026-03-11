@@ -1,0 +1,123 @@
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/assets/fonts/CabinetGrotesk-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.97 0.004 200;
+    --foreground: 0.15 0.01 200;
+    --card: 1 0 0;
+    --card-foreground: 0.15 0.01 200;
+    --popover: 1 0 0;
+    --popover-foreground: 0.15 0.01 200;
+    --primary: 0.6 0.18 165;
+    --primary-foreground: 0.99 0 0;
+    --secondary: 0.93 0.008 195;
+    --secondary-foreground: 0.2 0.01 200;
+    --muted: 0.93 0.008 195;
+    --muted-foreground: 0.48 0.01 200;
+    --accent: 0.6 0.18 165;
+    --accent-foreground: 0.99 0 0;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 0.97 0 0;
+    --border: 0.88 0.01 195;
+    --input: 0.96 0.005 200;
+    --ring: 0.6 0.18 165;
+    --radius: 0.5rem;
+    --sidebar: 1 0 0;
+    --sidebar-foreground: 0.15 0.01 200;
+    --sidebar-primary: 0.6 0.18 165;
+    --sidebar-primary-foreground: 0.99 0 0;
+    --sidebar-accent: 0.93 0.008 195;
+    --sidebar-accent-foreground: 0.2 0.01 200;
+    --sidebar-border: 0.88 0.01 195;
+    --sidebar-ring: 0.6 0.18 165;
+    --chart-1: 0.6 0.18 165;
+    --chart-2: 0.5 0.14 160;
+    --chart-3: 0.5 0.14 220;
+    --chart-4: 0.5 0.14 310;
+    --chart-5: 0.5 0.14 90;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Outfit", sans-serif;
+  }
+  html {
+    color-scheme: light;
+  }
+}
+
+/* ===== PRINT STYLES: BLACK AND WHITE ONLY ===== */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-family: Arial, sans-serif !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Force everything to black and white */
+  .payslip-print-container {
+    filter: grayscale(100%) !important;
+    background: white !important;
+    color: black !important;
+    padding: 20px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .payslip-print-container * {
+    color: black !important;
+    background-color: white !important;
+    border-color: black !important;
+  }
+
+  .payslip-print-container .print-dark-bg {
+    background-color: #000 !important;
+    color: #fff !important;
+  }
+
+  .payslip-print-container .print-dark-bg * {
+    color: #fff !important;
+    background-color: #000 !important;
+  }
+
+  .payslip-print-container .print-shaded-bg {
+    background-color: #ddd !important;
+  }
+
+  .payslip-print-container .print-shaded-bg * {
+    background-color: #ddd !important;
+  }
+}
