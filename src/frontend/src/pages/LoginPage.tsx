@@ -4,11 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useRegisterEmployee } from "../hooks/useQueries";
 
 const ADMIN_USERNAME = "admin";
 const ADMIN_PASSWORD = "admin05";
@@ -25,16 +24,80 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, loginStatus } = useInternetIdentity();
-  const { actor } = useActor();
-  const registerEmployee = useRegisterEmployee();
+  // Pending employee action: set when user clicks submit, resolved after II login
+  const pendingAction = useRef<{
+    mode: "login" | "register";
+    username: string;
+    fullName: string;
+  } | null>(null);
 
-  const isLoggingIn = loginStatus === "logging-in" || loading;
+  const { login, loginStatus } = useInternetIdentity();
+  const { actor, isFetching } = useActor();
+
+  const isLoggingIn = loginStatus === "logging-in" || loading || isFetching;
 
   const handleRoleChange = (v: string) => {
     setRoleTab(v as "employee" | "admin");
     if (v === "admin") setModeTab("login");
   };
+
+  // React to II login success + actor ready
+  useEffect(() => {
+    if (!pendingAction.current) return;
+    if (loginStatus === "loginError") {
+      toast.error("Authentication failed. Please try again.");
+      setLoading(false);
+      pendingAction.current = null;
+      return;
+    }
+    if (
+      (loginStatus === "success" || loginStatus === "idle") &&
+      actor &&
+      !isFetching
+    ) {
+      const action = pendingAction.current;
+      pendingAction.current = null;
+      void (async () => {
+        try {
+          if (action.mode === "register") {
+            await actor.saveCallerUserProfile({
+              username: action.username,
+              role: "employee",
+              fullName: action.fullName || action.username,
+            });
+            toast.success("Registration successful!");
+            onLoginSuccess(
+              "employee",
+              action.username,
+              action.fullName || action.username,
+            );
+          } else {
+            const profileResult = await actor.getCallerUserProfile();
+            const profile = Array.isArray(profileResult)
+              ? profileResult[0]
+              : profileResult;
+            if (!profile) {
+              toast.error("No account found. Please register first.");
+              setLoading(false);
+              return;
+            }
+            if (profile.username !== action.username) {
+              toast.error("Username does not match your registered account.");
+              setLoading(false);
+              return;
+            }
+            toast.success(`Welcome back, ${profile.fullName}!`);
+            onLoginSuccess(profile.role, profile.username, profile.fullName);
+          }
+        } catch (err) {
+          console.error(err);
+          toast.error("An error occurred. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    }
+  }, [loginStatus, actor, isFetching, onLoginSuccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,52 +122,14 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     }
 
     setLoading(true);
-    try {
-      await login();
 
-      if (!actor) {
-        toast.error("Authentication failed. Please try again.");
-        setLoading(false);
-        return;
-      }
-
-      if (modeTab === "register") {
-        await registerEmployee.mutateAsync({
-          username: username.trim(),
-          fullName: fullName.trim() || username.trim(),
-        });
-        await actor.saveCallerUserProfile({
-          username: username.trim(),
-          role: "employee",
-          fullName: fullName.trim() || username.trim(),
-        });
-        toast.success("Registration successful!");
-        onLoginSuccess(
-          "employee",
-          username.trim(),
-          fullName.trim() || username.trim(),
-        );
-      } else {
-        const profile = await actor.getCallerUserProfile();
-        if (!profile) {
-          toast.error("No account found. Please register first.");
-          setLoading(false);
-          return;
-        }
-        if (profile.username !== username.trim()) {
-          toast.error("Username does not match your registered account.");
-          setLoading(false);
-          return;
-        }
-        toast.success(`Welcome back, ${profile.fullName}!`);
-        onLoginSuccess(profile.role, profile.username, profile.fullName);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    // Store pending action and trigger II login popup
+    pendingAction.current = {
+      mode: modeTab,
+      username: username.trim(),
+      fullName: fullName.trim(),
+    };
+    login();
   };
 
   return (
@@ -215,20 +240,29 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                   autoComplete="username"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">
-                  Password
-                </Label>
-                <Input
-                  data-ocid="login.password.input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  className="bg-input border-border h-11"
-                  autoComplete="current-password"
-                />
-              </div>
+              {roleTab === "admin" && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Password
+                  </Label>
+                  <Input
+                    data-ocid="login.password.input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    className="bg-input border-border h-11"
+                    autoComplete="current-password"
+                  />
+                </div>
+              )}
+              {roleTab === "employee" && (
+                <p className="text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                  {modeTab === "register"
+                    ? "A popup will open to verify your identity via Internet Identity."
+                    : "Enter your username and authenticate via the Internet Identity popup."}
+                </p>
+              )}
               <Button
                 type="submit"
                 data-ocid="login.submit_button"
